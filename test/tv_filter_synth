@@ -1,0 +1,38 @@
+#!/usr/bin/octave -q
+% For each sample of output, reads p+1 filter coefficients of type double for a
+% filter of order p and 1 sample of the residual and synthesizes a signal by
+% filtering the residual by the filter coefficients.
+if (nargin != 1) && (nargin != 2),
+    fprintf(stderr,...
+    "arguments are: p mode\n\
+        p - the order of the filter.\n\
+        mode - 0: use residual (default).\n\
+               1: use noise.");
+    exit(-1);
+end;
+args=argv();
+if nargin == 1,
+   [p]=args{:};
+    mode="0";
+else
+   [p,mode]=args{:};
+end 
+p=str2num(p);
+mode=str2num(mode);
+% filter state
+state=zeros(p,1);
+while (1),
+    [data,count]=fread(stdin,p+2,'double');
+    if (count < (p+2)),
+        break;
+    end;
+    A=data(1:(p+1));
+    A=A(:);
+    if mode==1,
+        x=(rand(1)*2-1)*0.01;
+    else
+        x=data(p+2);
+    end; 
+    [y,state]=filter([1],A,x,state);
+    fwrite(stdout,y,'double');
+end;

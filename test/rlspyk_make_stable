@@ -1,0 +1,38 @@
+#!/usr/bin/octave -q
+% Accepts the output of rlspykas in analysis configuration and checks the
+% stability of the coefficients at each time step. If these coefficients are
+% deemed to be unstable, the polynomial represented by the coefficients is
+% factorized, the unstable roots are replaced by their conjugated inverse and
+% the new stable poles are output.
+%
+% In any case, the coefficients are output in a form suitable for
+% Octave/MATLAB's "filter" function. Concerning the coefficient output B of the
+% rlspyk filter program, the output of this program, which is of the suitable
+% form is [1; -B], followed by one sample of the residual e.
+if nargin != 1,
+    fprintf(stderr,...
+    "arguments are: p\n\
+        p - the order of the filter.");
+    exit(-1);
+end;
+args=argv();
+[p]=args{:};
+p=str2num(p);
+while (1),
+    [data,count]=fread(stdin,p+1,'double');
+    if (count < (p+1)),
+        break;
+    end;
+    B=data(1:p);
+    B=B(:);
+    G=zeros(size(B,1),1);
+    G=atog([1; -B]);
+    if (any(abs(G)>1)),
+        B_=ar_stabilizer([1; -B]);
+    else
+        B_=[1; -B];
+    end;
+    fwrite(stdout,B_,'double');
+    fwrite(stdout,data(p+1),'double');
+end;
+

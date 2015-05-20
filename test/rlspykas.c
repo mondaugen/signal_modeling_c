@@ -1,7 +1,15 @@
 /* Reads a signal as doubles from stdin and performs RLS predicition on it. The
  * program writes the following to stdout:
- * w0[0], w0[1], ..., w0[p-1], e0, w1[0], ..., w1[p-1], e1, ..., wn[0], ...,
- * wn[p - 1], {en,dn}
+ * w0[0], w0[1], ..., w0[p-1], S0, w1[0], ..., w1[p-1], S1, ..., wn[0], ...,
+ * wn[p - 1], Sn
+ * where S is one of the following depending upon the mode
+ *  mode = 0 (synthesis)
+ *      S = E: the error signal or residual
+ *  mode = 1 (analysis)
+ *      S = D: the reconstructed signal
+ *  mode = 2 (analysis+original)
+ *      S = E,D: one sample of the residual, followed by one sample of the
+ *               original
  * where n is the length of the input signal.
  * It writes en (the error signal) when doing analysis and dn (the original
  * signal) when doing synthesis.
@@ -16,12 +24,14 @@
 
 #define DELTA 0.001 
 
+#define RLSPYK_ANALYSIS_PLUS_ORIGINAL (2)
+
 
 int main (int argc, char **argv)
 {
     if (argc != 4) {
         fprintf(stderr,"Arguments are: "
-                "%s p lambda mode(0=synthesis,1=analysis)\n",argv[0]);
+                "%s p lambda mode(0=synthesis,1=analysis,2=analysis+original)\n",argv[0]);
         return(-1);
     }
     int p, mode, err;
@@ -48,13 +58,20 @@ int main (int argc, char **argv)
                 break;
             case RLSPYK_SYNTHESIS:
                 n_items = fread(e,sizeof(double),BUFFER_SIZE,stdin);
+                break;
+            case RLSPYK_ANALYSIS_PLUS_ORIGINAL:
+                n_items = fread(d,sizeof(double),BUFFER_SIZE,stdin);
         }
         if (n_items < 0) {
             perror("Reading file");
             return(-1);
         }
         for (n = 0; n < n_items; n++) {
-            rlspyk(&d[n],p,wn,wn,Pn,Pn,&e[n],lambda,mode);
+            if (mode == RLSPYK_ANALYSIS_PLUS_ORIGINAL) {
+                rlspyk(&d[n],p,wn,wn,Pn,Pn,&e[n],lambda,RLSPYK_ANALYSIS);
+            } else {
+                rlspyk(&d[n],p,wn,wn,Pn,Pn,&e[n],lambda,mode);
+            }
             if (fwrite(wn,sizeof(double),p,stdout) < p) {
                 perror("Writing file");
                 return(-1);
@@ -64,6 +81,10 @@ int main (int argc, char **argv)
                     err = fwrite(&e[n],sizeof(double),1,stdout);
                     break;
                 case RLSPYK_SYNTHESIS:
+                    err = fwrite(&d[n],sizeof(double),1,stdout);
+                    break;
+                case RLSPYK_ANALYSIS_PLUS_ORIGINAL:
+                    err = fwrite(&e[n],sizeof(double),1,stdout);
                     err = fwrite(&d[n],sizeof(double),1,stdout);
             }
             if (err < 1) {

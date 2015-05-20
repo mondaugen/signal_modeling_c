@@ -1,0 +1,33 @@
+#!/usr/bin/octave -qf
+% Accepts the residual as formed by rlspykas in the analysis+original
+% configuration and inserts a sample using the formula.
+if nargin != 4,
+    fprintf(stderr,...
+    "arguments are: p L K I\n\
+        p - order of filter\n\
+        L - position at which to start inserting samples\n\
+        K - number of samples to insert\n\
+        I - the amount to increment L after each insertion\n");
+end;
+args=argv();
+[p,L,K,I]=args{:};
+p=str2num(p);
+L=str2num(L);
+K=str2num(K);
+I=str2num(I);
+data=fread(stdin,Inf,'double');
+E=data((1:(p+2):end)+p);
+D=data((1:(p+2):end)+p+1);
+B=reshape(data,[p+2 length(data)/(p+2)])';
+B=B(:,1:p);
+E=data((1:(p+2):end)+p);
+for k=(1:K),
+    % Calculate sample to insert into residual
+    e_=D(L)-B(L,1)*B(L-1,:)*D((L-1)-(0:(p-1)))-B(L,(2:end))*D(L-(1:(p-1)))-E(L);
+    e_=e_/B(L,1);
+    % Insert sample
+    E=[E(1:(L-1)); e_; E((L:end))];
+    % increment L
+    L=L+I;
+end;
+fwrite(stdout,E,'double');

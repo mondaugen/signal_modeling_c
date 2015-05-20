@@ -1,0 +1,24 @@
+#!/usr/bin/octave -q
+% Accepts the output of rlspykas in analysis configuration and checks the
+% stability of the coefficients at each time step
+if nargin != 1,
+    fprintf(stderr,...
+    "arguments are: p\n\
+        p - the order of the filter.");
+end;
+args=argv();
+[p]=args{:};
+p=str2num(p);
+while (1),
+    [data,count]=fread(stdin,p+1,'double');
+    if (count < (p+1)),
+        break;
+    end;
+    B=data(1:p);
+    B=B(:);
+    G=zeros(size(B,1),1);
+    G=atog([1; -B]);
+    if (any(abs(G)>1)),
+        fwrite(stdout,G,'double');
+    end;
+end;
